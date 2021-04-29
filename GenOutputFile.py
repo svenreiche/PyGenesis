@@ -29,7 +29,11 @@ class GenOutputFile:
         else:
             self.is2D=False
 
-
+    def reload(self):
+        if self.file is None:
+            return
+        self.file.close()
+        self.load(self.filepath)
 
     def generateSpectrum(self):
         found = self.findRecord('spectrum')
@@ -43,12 +47,6 @@ class GenOutputFile:
             sig = np.sqrt(np.array(self.file.get(tag1)))*np.exp(1j*np.array(self.file.get(tag2)))
             self.spec['/'+rec] = np.abs(np.fft.fftshift(np.fft.fft(sig, axis=1), axes=1))**2
 
-
-    def reload(self):
-        if self.file is None:
-            return
-        self.file.close()
-        self.load(self.filepath)
 
     def H5Iterator(self, name, node):
         if isinstance(node,h5py.Dataset):
@@ -118,6 +116,13 @@ class GenOutputFile:
                     z[i,:]*=1./zmean[i]
             return {'x': x, 'y': y, 'z': z, 'xlabel': xlabel, 'plot': 'image'}
 
+        if 'line' in mode:
+            x = self.z
+            ids = np.argmin(np.abs(self.s - 0.01 * np.max(self.s) * rel))
+            y = np.transpose(np.array(ele[:,ids]))
+            xlabel = 'z (m)'
+            return {'x': x, 'y': y, 'xlabel': xlabel, 'plot': 'plot', 'line': 'default'}
+
         if 'profile' in mode:
             x = self.s
             idz = np.argmin(np.abs(self.z-0.01*np.max(self.z)*rel))
@@ -133,3 +138,13 @@ class GenOutputFile:
                 y = y/nor
             return {'x': x, 'y': y, 'xlabel': xlabel, 'plot': 'plot', 'line': 'default'}
 
+        if 'max' in mode or 'min' in mode or 'mean' in mode:
+            x = self.z
+            if 'max' in mode:
+                y = np.amax(ele,axis = 1)
+            elif 'min' in mode:
+                y = np.amin(ele,axis = 1)
+            else:
+                y = np.mean(ele,axis = 1)
+            xlabel = 'z (m)'
+            return {'x': x, 'y': y, 'xlabel': xlabel, 'plot': 'plot', 'line': 'default'}

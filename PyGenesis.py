@@ -32,11 +32,13 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.colors = ['Blue', 'Red', 'Green', 'Orange', 'Purple', 'Brown', 'Pink', 'Olive', 'Grey', 'Cyan']
         self.lines = ['solid', 'dashed', 'dotted']
         self.markers = ['None', 'Circle', 'Square', 'Triangle']
-        self.modes = ['Line', 'Profile', 'Profile (norm)', 'Mean', 'Max', 'Min', 'Weighted', '2D', '2D (norm)']
+        self.modes = ['Profile', 'Profile (norm)', 'Mean', 'Max', 'Min', 'Weighted', '2D', '2D (norm)', 'Line']
 
 
 # connect events to handling functions
         self.actionLoad.triggered.connect(self.load)
+        self.actionClose.triggered.connect(self.close)
+        self.actionReload.triggered.connect(self.reload)
         self.PlotCommand.editingFinished.connect(self.getDatasets)
         self.UIReplot.clicked.connect(self.plotDatasetList)
         self.UIPos.valueChanged.connect(self.plotDatasetList)
@@ -73,6 +75,7 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
                     CBMode.addItem(mode)
                 CBMode.setCurrentIndex(0)
                 self.DatasetList.setCellWidget(icount, 1, CBMode)
+                CBMode.currentIndexChanged.connect(self.plotDatasetList)
 
                 for i in range(2):
                     ele = QtWidgets.QTableWidgetItem('')
@@ -83,6 +86,7 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
                     CBcol.addItem(col)
                 CBcol.setCurrentIndex(icount % len(self.colors))
                 self.DatasetList.setCellWidget(icount,4,CBcol)
+                CBcol.currentIndexChanged.connect(self.plotDatasetList)
                 icount += 1
         self.DatasetList.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem('Field'))
         self.DatasetList.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem('Mode'))
@@ -146,6 +150,13 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             im = self.axes.imshow(np.flipud(data['z']), aspect='auto', interpolation='none', cmap='viridis', extent=bbox)
 
 
+
+    def reload(self):
+        for key in self.files.keys():
+            self.files[key].reload()
+        self.updateDataBrowser()
+
+
     def load(self):
         options = QtWidgets.QFileDialog.Options()
         options |= QtWidgets.QFileDialog.DontUseNativeDialog
@@ -157,6 +168,17 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.files[fileName].load(fileName)
 
         self.updateDataBrowser()
+
+    def close(self):
+        cur = self.DataBrowser.currentItem()
+        if cur is None:
+            return # nothing selected
+        while self.DataBrowser.indexOfTopLevelItem(cur) < 0:
+            cur = cur.parent()
+        file = cur.data(0,QtCore.Qt.UserRole)
+        del self.files[file]
+        self.updateDataBrowser()
+
 #-----------------
 # gui action
 
@@ -166,6 +188,7 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.DataBrowser.setHeaderItem(QtWidgets.QTreeWidgetItem(['Files and Datasets', 'Record Size']))
         for file in self.files.keys():
             root = QtWidgets.QTreeWidgetItem(self.DataBrowser, [self.files[file].filename, ''])
+            root.setData(0,QtCore.Qt.UserRole,file)
             for key in self.files[file].file.keys():
                 if isinstance(self.files[file].file[key], h5py.Dataset):
                     QtWidgets.QTreeWidgetItem(root, [key, str(self.files[file].file[key].shape)])

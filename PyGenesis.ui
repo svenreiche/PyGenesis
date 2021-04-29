@@ -67,7 +67,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Plot Command</string>
+     <string>Select Datasets (RegExp)</string>
     </property>
    </widget>
    <widget class="QLineEdit" name="PlotCommand">
@@ -167,10 +167,16 @@
    <property name="text">
     <string>Reload File</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+L</string>
+   </property>
   </action>
   <action name="actionClose">
    <property name="text">
     <string>Close File</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+X</string>
    </property>
   </action>
   <action name="actionQuit">
