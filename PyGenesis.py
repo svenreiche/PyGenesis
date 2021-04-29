@@ -1,5 +1,6 @@
 import sys
 import h5py
+import numpy as np
 from PyQt5 import QtWidgets,QtGui,QtCore
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtGui import QPixmap, QDesktopServices
@@ -28,11 +29,19 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.files = {}
         self.updateDataBrowser()
 
+        self.colors = ['Blue', 'Red', 'Green', 'Orange', 'Purple', 'Brown', 'Pink', 'Olive', 'Grey', 'Cyan']
+        self.lines = ['solid', 'dashed', 'dotted']
+        self.markers = ['None', 'Circle', 'Square', 'Triangle']
+        self.modes = ['Line', 'Profile', 'Profile (norm)', 'Mean', 'Max', 'Min', 'Weighted', '2D', '2D (norm)']
+
+
 # connect events to handling functions
         self.actionLoad.triggered.connect(self.load)
         self.PlotCommand.editingFinished.connect(self.getDatasets)
         self.UIReplot.clicked.connect(self.plotDatasetList)
-        
+        self.UIPos.valueChanged.connect(self.plotDatasetList)
+        self.DatasetList.itemChanged.connect(self.plotDatasetList)
+
 # main routine for plotting
     def getDatasets(self):
         cmd=str(self.PlotCommand.text())
@@ -46,8 +55,9 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             self.plotDatasetList()
 
     def updateDatasetList(self, dset):
+        self.DatasetList.blockSignals(True)
         self.DatasetList.clear()
-        self.DatasetList.setColumnCount(1)
+        self.DatasetList.setColumnCount(5)
         self.DatasetList.setRowCount(0)
         icount = 0
         for key in dset:
@@ -58,28 +68,82 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
                 ele.setCheckState(QtCore.Qt.Checked)
                 ele.setData(QtCore.Qt.UserRole, key)
                 self.DatasetList.setItem(icount, 0, ele)
+                CBMode = QtWidgets.QComboBox()
+                for mode in self.modes:
+                    CBMode.addItem(mode)
+                CBMode.setCurrentIndex(0)
+                self.DatasetList.setCellWidget(icount, 1, CBMode)
+
+                for i in range(2):
+                    ele = QtWidgets.QTableWidgetItem('')
+                    ele.setCheckState(QtCore.Qt.Unchecked)
+                    self.DatasetList.setItem(icount, i+2, ele)
+                CBcol = QtWidgets.QComboBox()
+                for col in self.colors:
+                    CBcol.addItem(col)
+                CBcol.setCurrentIndex(icount % len(self.colors))
+                self.DatasetList.setCellWidget(icount,4,CBcol)
                 icount += 1
         self.DatasetList.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem('Field'))
+        self.DatasetList.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem('Mode'))
+        self.DatasetList.setHorizontalHeaderItem(2, QtWidgets.QTableWidgetItem('Right Axis'))
+        self.DatasetList.setHorizontalHeaderItem(3, QtWidgets.QTableWidgetItem('Log'))
+        self.DatasetList.setHorizontalHeaderItem(4, QtWidgets.QTableWidgetItem('Color'))
+
         self.DatasetList.resizeColumnsToContents()
         self.DatasetList.verticalHeader().hide()
+        self.DatasetList.blockSignals(False)
 
     def plotDatasetList(self):
         self.axes.clear()
+        self.axesr.clear()
+        self.pos = self.UIPos.value()
+        self.hasRAxis = False
+        self.xlabel = None
+        self.ylabel = []
+        self.ylabelR = []
+        self.plotType = None
+
         ncol = self.DatasetList.rowCount()
         for i in range(ncol):
             ele = self.DatasetList.item(i, 0)
             if ele.checkState() == QtCore.Qt.Checked:
                 file = ele.data(QtCore.Qt.UserRole)
                 field = str(ele.text())
-                self.doPlot(file,field)
+                rAxis = (self.DatasetList.item(i, 2).checkState() == QtCore.Qt.Checked)
+                log = (self.DatasetList.item(i, 3).checkState() == QtCore.Qt.Checked)
+                color='tab:'+str(self.DatasetList.cellWidget(i, 4).currentText()).lower()
+                mode = str(self.DatasetList.cellWidget(i, 1).currentText()).lower()
+                self.doPlot(file,field,mode,rAxis,log,color)
+        self.axes.set_xlabel(self.xlabel)
+        if not self.hasRAxis:
+            self.axesr.get_yaxis().set_visible(False)
+        else:
+            self.axesr.get_yaxis().set_visible(True)
         self.canvas.draw()
 
-    def doPlot(self,file,field):
-        data = self.files[file].getData(field)
+    ##############################
+    # plot of individual dataset
+
+    def doPlot(self, file, field, mode, rAxis, log, color):
+        data = self.files[file].getData(field, mode=mode, rel=self.pos)
         if data is None:
             return
+
+        if self.xlabel is None:
+            self.xlabel=data['xlabel']
+
         if 'plot' in data['plot']:
-            self.axes.plot(data['x'], data['y'],ds=data['line'])
+            ax=self.axes
+            if rAxis:
+                ax=self.axesr
+                self.hasRAxis=True
+            ax.plot(data['x'], data['y'],ds=data['line'],color=color)
+            if log:
+                ax.set_yscale('log')
+        elif 'image' in data['plot']:
+            bbox = [np.min(data['y']), np.max(data['y']), np.min(data['x']), np.max(data['x'])]
+            im = self.axes.imshow(np.flipud(data['z']), aspect='auto', interpolation='none', cmap='viridis', extent=bbox)
 
 
     def load(self):
@@ -125,6 +189,7 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
     def initmpl(self):
         self.fig=Figure()
         self.axes=self.fig.add_subplot(111)
+        self.axesr=self.axes.twinx()
         self.canvas = FigureCanvas(self.fig)
         self.mplvl.addWidget(self.canvas)
         self.canvas.draw()
