@@ -34,15 +34,32 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.markers = ['None', 'Circle', 'Square', 'Triangle']
         self.modes = ['Profile', 'Profile (norm)', 'Mean', 'Max', 'Min', 'Weighted', '2D', '2D (norm)', 'Line']
 
+        # formating the datalist
+        self.DatasetList.clear()
+        self.DatasetList.setColumnCount(5)
+        self.DatasetList.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem('Field'))
+        self.DatasetList.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem('Mode'))
+        self.DatasetList.setHorizontalHeaderItem(2, QtWidgets.QTableWidgetItem('Right Axis'))
+        self.DatasetList.setHorizontalHeaderItem(3, QtWidgets.QTableWidgetItem('Log'))
+        self.DatasetList.setHorizontalHeaderItem(4, QtWidgets.QTableWidgetItem('Color'))
+        self.DatasetList.verticalHeader().hide()
 
-# connect events to handling functions
+        # connect events to handling functions
         self.actionLoad.triggered.connect(self.load)
         self.actionClose.triggered.connect(self.close)
         self.actionReload.triggered.connect(self.reload)
+        self.actionDelete.triggered.connect(self.deleteDataset)
+        self.actionDuplicate.triggered.connect(self.duplicateDataset)
+        self.actionCor1.triggered.connect(self.coherence)
+        self.actionCor2.triggered.connect(self.coherence)
+        self.actionAutocorrelation.triggered.connect(self.convolution)
+        self.actionWigner.triggered.connect(self.Wigner)
         self.PlotCommand.editingFinished.connect(self.getDatasets)
         self.UIReplot.clicked.connect(self.plotDatasetList)
         self.UIPos.valueChanged.connect(self.plotDatasetList)
         self.DatasetList.itemChanged.connect(self.plotDatasetList)
+        self.DataBrowser.itemDoubleClicked.connect(self.addDataset)
+
 
 # main routine for plotting
     def getDatasets(self):
@@ -53,49 +70,41 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             if len(found):
                 datasets[key] = found
         if datasets:
-            self.updateDatasetList(datasets)
+            self.DatasetList.setRowCount(0)
+            for key in datasets.keys():
+                name = key.split('/')[-1] + '/'
+                for fld in datasets[key]:
+                    self.addDatasetListEntry(key,name+fld)
             self.plotDatasetList()
 
-    def updateDatasetList(self, dset):
+    def addDatasetListEntry(self, file, field, option=None):
+        if option is None:
+            option = self.modes
+
         self.DatasetList.blockSignals(True)
-        self.DatasetList.clear()
-        self.DatasetList.setColumnCount(5)
-        self.DatasetList.setRowCount(0)
-        icount = 0
-        for key in dset:
-            name = key.split('/')[-1]+'/'
-            for fld in dset[key]:
-                self.DatasetList.setRowCount(icount+1)
-                ele = QtWidgets.QTableWidgetItem(name+fld)
-                ele.setCheckState(QtCore.Qt.Checked)
-                ele.setData(QtCore.Qt.UserRole, key)
-                self.DatasetList.setItem(icount, 0, ele)
-                CBMode = QtWidgets.QComboBox()
-                for mode in self.modes:
-                    CBMode.addItem(mode)
-                CBMode.setCurrentIndex(0)
-                self.DatasetList.setCellWidget(icount, 1, CBMode)
-                CBMode.currentIndexChanged.connect(self.plotDatasetList)
-
-                for i in range(2):
-                    ele = QtWidgets.QTableWidgetItem('')
-                    ele.setCheckState(QtCore.Qt.Unchecked)
-                    self.DatasetList.setItem(icount, i+2, ele)
-                CBcol = QtWidgets.QComboBox()
-                for col in self.colors:
-                    CBcol.addItem(col)
-                CBcol.setCurrentIndex(icount % len(self.colors))
-                self.DatasetList.setCellWidget(icount,4,CBcol)
-                CBcol.currentIndexChanged.connect(self.plotDatasetList)
-                icount += 1
-        self.DatasetList.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem('Field'))
-        self.DatasetList.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem('Mode'))
-        self.DatasetList.setHorizontalHeaderItem(2, QtWidgets.QTableWidgetItem('Right Axis'))
-        self.DatasetList.setHorizontalHeaderItem(3, QtWidgets.QTableWidgetItem('Log'))
-        self.DatasetList.setHorizontalHeaderItem(4, QtWidgets.QTableWidgetItem('Color'))
-
+        icount = self.DatasetList.rowCount()
+        self.DatasetList.setRowCount(icount+1)
+        ele = QtWidgets.QTableWidgetItem(field)
+        ele.setCheckState(QtCore.Qt.Checked)
+        ele.setData(QtCore.Qt.UserRole, file)
+        self.DatasetList.setItem(icount, 0, ele)
+        CBMode = QtWidgets.QComboBox()
+        for mode in option:
+            CBMode.addItem(mode)
+        CBMode.setCurrentIndex(0)
+        self.DatasetList.setCellWidget(icount, 1, CBMode)
+        CBMode.currentIndexChanged.connect(self.plotDatasetList)
+        for i in range(2):
+            ele = QtWidgets.QTableWidgetItem('')
+            ele.setCheckState(QtCore.Qt.Unchecked)
+            self.DatasetList.setItem(icount, i+2, ele)
+        CBcol = QtWidgets.QComboBox()
+        for col in self.colors:
+            CBcol.addItem(col)
+        CBcol.setCurrentIndex(icount % len(self.colors))
+        self.DatasetList.setCellWidget(icount,4,CBcol)
+        CBcol.currentIndexChanged.connect(self.plotDatasetList)
         self.DatasetList.resizeColumnsToContents()
-        self.DatasetList.verticalHeader().hide()
         self.DatasetList.blockSignals(False)
 
     def plotDatasetList(self):
@@ -130,7 +139,14 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
     # plot of individual dataset
 
     def doPlot(self, file, field, mode, rAxis, log, color):
-        data = self.files[file].getData(field, mode=mode, rel=self.pos)
+        if 'Correlation' in field:
+            data = self.files[file].getCoherence(field[:-1], self.pos,int(field[11:12]))
+        elif 'Convolution' in field:
+            data = self.files[file].getConvolution(field[:-1], self.pos)
+        elif 'Wigner' in field:
+            data = self.files[file].getWigner(field, self.pos)
+        else:
+            data = self.files[file].getData(field, mode=mode, rel=self.pos)
         if data is None:
             return
 
@@ -149,13 +165,13 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             bbox = [np.min(data['y']), np.max(data['y']), np.min(data['x']), np.max(data['x'])]
             im = self.axes.imshow(np.flipud(data['z']), aspect='auto', interpolation='none', cmap='viridis', extent=bbox)
 
-
+    ####################33
+    # menu item action or other events
 
     def reload(self):
         for key in self.files.keys():
             self.files[key].reload()
         self.updateDataBrowser()
-
 
     def load(self):
         options = QtWidgets.QFileDialog.Options()
@@ -179,7 +195,63 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         del self.files[file]
         self.updateDataBrowser()
 
-#-----------------
+    def addDataset(self, QTWItem):
+        if len(str(QTWItem.text(1))) < 2:
+                return
+        Field = str(QTWItem.text(0))
+        cur = QTWItem
+        while self.DataBrowser.indexOfTopLevelItem(cur) < 0:
+            cur = cur.parent()
+            Field = str(cur.text(0))+'/'+Field
+        file = cur.data(0,QtCore.Qt.UserRole)
+        self.addDatasetListEntry(file, Field)
+        self.plotDatasetList()
+
+    def duplicateDataset(self):
+        row = self.DatasetList.currentRow()
+        ele = self.DatasetList.item(row,0)
+        file = ele.data(QtCore.Qt.UserRole)
+        field = str(ele.text())
+        self.addDatasetListEntry(file,field)
+
+    def deleteDataset(self):
+        row = self.DatasetList.currentRow()
+        if row < 0:
+            return
+        self.DatasetList.removeRow(row)
+
+    def coherence(self):
+        cmd = 'Field([/]|[2-9][/])intensity'
+        order='1'
+        sname=self.sender().objectName()
+        if 'Cor2' in sname:
+            order='2'
+        for key in self.files.keys():
+            found = self.files[key].findRecord(cmd)
+            if len(found):
+                name = key.split('/')[-1] + '/'
+                for fld in found:
+                    self.addDatasetListEntry(key, 'Correlation'+order+'('+name+fld+')')
+
+    def convolution(self):
+        cmd = 'Field.*/power'
+        for key in self.files.keys():
+            found = self.files[key].findRecord(cmd)
+            if len(found):
+                name = key.split('/')[-1] + '/'
+                for fld in found:
+                    self.addDatasetListEntry(key, 'Convolution(' + name + fld + ')')
+
+    def Wigner(self):
+        cmd = 'Field([/]|[2-9][/])intensity'
+        for key in self.files.keys():
+            found = self.files[key].findRecord(cmd)
+            if len(found):
+                name = key.split('/')[-1] + '/'
+                for fld in found:
+                    self.addDatasetListEntry(key, 'Wigner(' + name + fld + ')', ['2D'])
+
+    #-----------------
 # gui action
 
 # update databrowser

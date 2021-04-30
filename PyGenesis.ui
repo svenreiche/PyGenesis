@@ -152,7 +152,25 @@
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="actionDelete"/>
+    <addaction name="actionDuplicate"/>
+   </widget>
+   <widget class="QMenu" name="menuAnalysis">
+    <property name="title">
+     <string>Analysis</string>
+    </property>
+    <addaction name="actionCor1"/>
+    <addaction name="actionCor2"/>
+    <addaction name="actionAutocorrelation"/>
+    <addaction name="actionWigner"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
+   <addaction name="menuAnalysis"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionLoad">
@@ -176,7 +194,7 @@
     <string>Close File</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+X</string>
+    <string>Ctrl+C</string>
    </property>
   </action>
   <action name="actionQuit">
@@ -185,6 +203,42 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionDelete">
+   <property name="text">
+    <string>Delete Dataset</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+X</string>
+   </property>
+  </action>
+  <action name="actionDuplicate">
+   <property name="text">
+    <string>Duplicate Dataset</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="actionCor1">
+   <property name="text">
+    <string>Temporal Coherence, 1st order</string>
+   </property>
+  </action>
+  <action name="actionCor2">
+   <property name="text">
+    <string>Temporal Coherence, 2nd order</string>
+   </property>
+  </action>
+  <action name="actionAutocorrelation">
+   <property name="text">
+    <string>Autocorrelation</string>
+   </property>
+  </action>
+  <action name="actionWigner">
+   <property name="text">
+    <string>Wigner Distribution</string>
    </property>
   </action>
  </widget>

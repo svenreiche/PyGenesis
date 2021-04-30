@@ -148,3 +148,49 @@ class GenOutputFile:
                 y = np.mean(ele,axis = 1)
             xlabel = 'z (m)'
             return {'x': x, 'y': y, 'xlabel': xlabel, 'plot': 'plot', 'line': 'default'}
+
+    def getWigner(self,field,spos):
+        x = self.s
+        idz = np.argmin(np.abs(self.z - 0.01 * np.max(self.z) * rel))
+        return None
+
+    def getCoherence(self, field, rel, degree):
+        idx = field.find('/')
+        tag = field[idx:]
+        xlabel = 't (fs)'
+        idz = np.argmin(np.abs(self.z - 0.01 * np.max(self.z) * rel))
+        ele = self.file.get(tag)
+        elesup = self.file.get(tag.replace('intensity','phase'))
+        if degree == 1:
+            sig = np.sqrt(ele[idz,:])*np.exp(1j*elesup[idz,:])
+            sigc = np.conj(sig)
+        elif degree == 2:
+            sig = ele[idz,:]
+            sigc= ele[idz,:]
+        else:
+            return None
+
+        n = 1000
+        y = np.zeros(n)
+        x = self.s[0:n]
+        nfull = len(sig)
+        for i in range(n):
+            y[i] = np.real(np.mean(sig[0:nfull-i]*sigc[i:nfull]))
+        norm = y[0]
+        if degree == 2:
+            norm = np.mean(sig)**2
+        if norm == 0:
+            norm = 1
+        y /= norm
+        return {'x': x, 'y': y, 'xlabel': xlabel, 'plot': 'plot', 'line': 'default'}
+
+    def getConvolution(self, field, rel):
+        idx = field.find('/')
+        tag = field[idx:]
+        x = self.s
+        xlabel = 't (fs)'
+        idz = np.argmin(np.abs(self.z - 0.01 * np.max(self.z) * rel))
+        ele = self.file.get(tag)
+        sig = ele[idz, :]
+        y = np.convolve(sig,sig,mode='same')[len(x)-1:]
+        return {'x': x, 'y': y, 'xlabel': xlabel, 'plot': 'plot', 'line': 'default'}
