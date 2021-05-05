@@ -80,7 +80,7 @@ class GenOutputFile:
             if 'zplot' in tag:
                 x = self.z
             y = self.file.get(tag)
-            return {'x': x, 'y': y, 'xlabel':'z (m)', 'plot': 'plot', 'line': 'steps'}
+            return {'x': x, 'y': y, 'xlabel':r'$z$ (m)', 'plot': 'plot', 'line': 'steps'}
         if 'spectrum' in tag:
             ele = self.spec[tag]
         else:
@@ -93,21 +93,21 @@ class GenOutputFile:
                 return None
             x = self.s
             y = np.transpose(ele)
-            return {'x': x, 'y': y, 'xlabel': 't (fs)', 'plot': 'plot', 'line': 'default'}
+            return {'x': x, 'y': y, 'xlabel': r'$t$ (fs)', 'plot': 'plot', 'line': 'default'}
         if len(dims) == 1 or dims[0] == 1:
             x = self.z
             y = ele
-            return {'x': x, 'y': y, 'xlabel': 'z (m)', 'plot': 'plot', 'line': 'default'}
+            return {'x': x, 'y': y, 'xlabel': r'$z$ (m)', 'plot': 'plot', 'line': 'default'}
 
 
         if '2d' in mode:
             x = self.z
             y = self.s
-            xlabel = 't (fs)'
+            xlabel = r'$t$ (fs)'
             z = np.array(ele)
             if 'spectrum' in tag:
                 y = self.freq
-                xlabel = 'E_ph (eV)'
+                xlabel = r'$E_{ph}$ (eV)'
             if 'norm' in mode.lower():
                 zmean =np.mean(z, axis=1)
                 for i in range(len(zmean)):
@@ -120,17 +120,17 @@ class GenOutputFile:
             x = self.z
             ids = np.argmin(np.abs(self.s - 0.01 * np.max(self.s) * rel))
             y = np.transpose(np.array(ele[:,ids]))
-            xlabel = 'z (m)'
+            xlabel = r'$z$ (m)'
             return {'x': x, 'y': y, 'xlabel': xlabel, 'plot': 'plot', 'line': 'default'}
 
         if 'profile' in mode:
             x = self.s
             idz = np.argmin(np.abs(self.z-0.01*np.max(self.z)*rel))
             y = np.transpose(np.array(ele[idz,:]))
-            xlabel = 't (fs)'
+            xlabel = r'$t$ (fs)'
             if 'spectrum' in tag:
                 x = self.freq
-                xlabel = 'E_ph (eV)'
+                xlabel = r'$E_{ph}$ (eV)'
             if 'norm' in mode:
                 nor = np.max(y)
                 if nor == 0:
@@ -146,7 +146,7 @@ class GenOutputFile:
                 y = np.amin(ele,axis = 1)
             else:
                 y = np.mean(ele,axis = 1)
-            xlabel = 'z (m)'
+            xlabel = r'$z$ (m)'
             return {'x': x, 'y': y, 'xlabel': xlabel, 'plot': 'plot', 'line': 'default'}
 
     def getWigner(self,field,spos):
@@ -157,7 +157,7 @@ class GenOutputFile:
     def getCoherence(self, field, rel, degree):
         idx = field.find('/')
         tag = field[idx:]
-        xlabel = 't (fs)'
+        xlabel = r'$t$ (fs)'
         idz = np.argmin(np.abs(self.z - 0.01 * np.max(self.z) * rel))
         ele = self.file.get(tag)
         elesup = self.file.get(tag.replace('intensity','phase'))
@@ -188,7 +188,7 @@ class GenOutputFile:
         idx = field.find('/')
         tag = field[idx:]
         x = self.s
-        xlabel = 't (fs)'
+        xlabel = r'$t$ (fs)'
         idz = np.argmin(np.abs(self.z - 0.01 * np.max(self.z) * rel))
         ele = self.file.get(tag)
         sig = ele[idz, :]

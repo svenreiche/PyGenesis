@@ -36,12 +36,13 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
 
         # formating the datalist
         self.DatasetList.clear()
-        self.DatasetList.setColumnCount(5)
+        self.DatasetList.setColumnCount(6)
         self.DatasetList.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem('Field'))
         self.DatasetList.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem('Mode'))
         self.DatasetList.setHorizontalHeaderItem(2, QtWidgets.QTableWidgetItem('Right Axis'))
         self.DatasetList.setHorizontalHeaderItem(3, QtWidgets.QTableWidgetItem('Log'))
         self.DatasetList.setHorizontalHeaderItem(4, QtWidgets.QTableWidgetItem('Color'))
+        self.DatasetList.setHorizontalHeaderItem(5, QtWidgets.QTableWidgetItem('Rel. Pos.'))
         self.DatasetList.verticalHeader().hide()
 
         # connect events to handling functions
@@ -59,7 +60,10 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.UIPos.valueChanged.connect(self.plotDatasetList)
         self.DatasetList.itemChanged.connect(self.plotDatasetList)
         self.DataBrowser.itemDoubleClicked.connect(self.addDataset)
-
+        self.UIXmax.editingFinished.connect(self.plotDatasetList)
+        self.UIXmin.editingFinished.connect(self.plotDatasetList)
+        self.UIYmax.editingFinished.connect(self.plotDatasetList)
+        self.UIYmin.editingFinished.connect(self.plotDatasetList)
 
 # main routine for plotting
     def getDatasets(self):
@@ -104,13 +108,14 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         CBcol.setCurrentIndex(icount % len(self.colors))
         self.DatasetList.setCellWidget(icount,4,CBcol)
         CBcol.currentIndexChanged.connect(self.plotDatasetList)
+        ele = QtWidgets.QTableWidgetItem('')
+        self.DatasetList.setItem(icount, 5, ele)
         self.DatasetList.resizeColumnsToContents()
         self.DatasetList.blockSignals(False)
 
     def plotDatasetList(self):
         self.axes.clear()
         self.axesr.clear()
-        self.pos = self.UIPos.value()
         self.hasRAxis = False
         self.xlabel = None
         self.ylabel = []
@@ -127,26 +132,52 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
                 log = (self.DatasetList.item(i, 3).checkState() == QtCore.Qt.Checked)
                 color='tab:'+str(self.DatasetList.cellWidget(i, 4).currentText()).lower()
                 mode = str(self.DatasetList.cellWidget(i, 1).currentText()).lower()
-                self.doPlot(file,field,mode,rAxis,log,color)
+                zpos = str(self.DatasetList.item(i,5).text())
+                try:
+                    spos = float(zpos)
+                except:
+                    spos = self.UIPos.value()
+                self.doPlot(file,field,mode,rAxis,log,color,spos)
         self.axes.set_xlabel(self.xlabel)
         if not self.hasRAxis:
             self.axesr.get_yaxis().set_visible(False)
         else:
             self.axesr.get_yaxis().set_visible(True)
+
+        # get the limits in the plots
+        try:
+            xmin=float(str(self.UIXmin.text()))
+        except:
+            xmin=self.axes.get_xlim()[0]
+        try:
+            xmax=float(str(self.UIXmax.text()))
+        except:
+            xmax=self.axes.get_xlim()[1]
+        self.axes.set_xlim([xmin,xmax])
+        try:
+            ymin=float(str(self.UIYmin.text()))
+        except:
+            ymin=self.axes.get_ylim()[0]
+        try:
+            ymax=float(str(self.UIYmax.text()))
+        except:
+            ymax=self.axes.get_ylim()[1]
+        self.axes.set_ylim([ymin,ymax])
+
         self.canvas.draw()
 
     ##############################
     # plot of individual dataset
 
-    def doPlot(self, file, field, mode, rAxis, log, color):
+    def doPlot(self, file, field, mode, rAxis, log, color, pos):
         if 'Correlation' in field:
-            data = self.files[file].getCoherence(field[:-1], self.pos,int(field[11:12]))
+            data = self.files[file].getCoherence(field[:-1], pos,int(field[11:12]))
         elif 'Convolution' in field:
-            data = self.files[file].getConvolution(field[:-1], self.pos)
+            data = self.files[file].getConvolution(field[:-1], pos)
         elif 'Wigner' in field:
-            data = self.files[file].getWigner(field, self.pos)
+            data = self.files[file].getWigner(field, pos)
         else:
-            data = self.files[file].getData(field, mode=mode, rel=self.pos)
+            data = self.files[file].getData(field, mode=mode, rel=pos)
         if data is None:
             return
 
