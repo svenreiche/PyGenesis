@@ -15,7 +15,7 @@ from matplotlib.backends.backend_qt5agg import (
 
 
 # PyGenesis specific imports
-Ui_PyGenesisGUI, QMainWindow = loadUiType('PyGenesis.ui')
+Ui_PyGenesisGUI, QMainWindow = loadUiType('/cluster/home/sreiche/Source/Genesis/PyGenesis/PyGenesis.ui')
 
 import GenOutputFile
 
@@ -33,16 +33,19 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.lines = ['solid', 'dashed', 'dotted']
         self.markers = ['None', 'Circle', 'Square', 'Triangle']
         self.modes = ['Profile', 'Profile (norm)', 'Mean', 'Max', 'Min', 'Weighted', '2D', '2D (norm)', 'Line']
+        self.colormap='viridis'
 
         # formating the datalist
         self.DatasetList.clear()
-        self.DatasetList.setColumnCount(6)
+        self.DatasetList.setColumnCount(8)
         self.DatasetList.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem('Field'))
         self.DatasetList.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem('Mode'))
         self.DatasetList.setHorizontalHeaderItem(2, QtWidgets.QTableWidgetItem('Right Axis'))
         self.DatasetList.setHorizontalHeaderItem(3, QtWidgets.QTableWidgetItem('Log'))
         self.DatasetList.setHorizontalHeaderItem(4, QtWidgets.QTableWidgetItem('Color'))
         self.DatasetList.setHorizontalHeaderItem(5, QtWidgets.QTableWidgetItem('Rel. Pos.'))
+        self.DatasetList.setHorizontalHeaderItem(6, QtWidgets.QTableWidgetItem('Legend'))
+        self.DatasetList.setHorizontalHeaderItem(7, QtWidgets.QTableWidgetItem('Scale'))
         self.DatasetList.verticalHeader().hide()
 
         # connect events to handling functions
@@ -55,7 +58,7 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.actionCor2.triggered.connect(self.coherence)
         self.actionAutocorrelation.triggered.connect(self.convolution)
         self.actionWigner.triggered.connect(self.Wigner)
-        self.PlotCommand.editingFinished.connect(self.getDatasets)
+        self.PlotCommand.returnPressed.connect(self.getDatasets)
         self.UIReplot.clicked.connect(self.plotDatasetList)
         self.UIPos.valueChanged.connect(self.plotDatasetList)
         self.DatasetList.itemChanged.connect(self.plotDatasetList)
@@ -64,28 +67,42 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.UIXmin.editingFinished.connect(self.plotDatasetList)
         self.UIYmax.editingFinished.connect(self.plotDatasetList)
         self.UIYmin.editingFinished.connect(self.plotDatasetList)
+        self.UILegend.toggled.connect(self.plotDatasetList)
+        self.actionviridis.triggered.connect(self.changeColormap)
+        self.actionInferno.triggered.connect(self.changeColormap)
+        self.actionSeismic.triggered.connect(self.changeColormap)
+        self.actionOcean.triggered.connect(self.changeColormap)
+        self.actionTerrain.triggered.connect(self.changeColormap)
+        self.actionJet.triggered.connect(self.changeColormap)
+
+    def changeColormap(self):
+        self.colormap=self.sender().objectName()[6:].lower()
+        self.plotDatasetList()
 
 # main routine for plotting
     def getDatasets(self):
         cmd=str(self.PlotCommand.text())
+        if len(cmd) < 1:
+            return
         datasets={}
         for key in self.files.keys():
             found = self.files[key].findRecord(cmd)
             if len(found):
                 datasets[key] = found
         if datasets:
+            self.DatasetList.blockSignals(True)
             self.DatasetList.setRowCount(0)
             for key in datasets.keys():
                 name = key.split('/')[-1] + '/'
                 for fld in datasets[key]:
                     self.addDatasetListEntry(key,name+fld)
+            self.DatasetList.blockSignals(False)
             self.plotDatasetList()
 
     def addDatasetListEntry(self, file, field, option=None):
         if option is None:
             option = self.modes
 
-        self.DatasetList.blockSignals(True)
         icount = self.DatasetList.rowCount()
         self.DatasetList.setRowCount(icount+1)
         ele = QtWidgets.QTableWidgetItem(field)
@@ -110,10 +127,14 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         CBcol.currentIndexChanged.connect(self.plotDatasetList)
         ele = QtWidgets.QTableWidgetItem('')
         self.DatasetList.setItem(icount, 5, ele)
+        ele = QtWidgets.QTableWidgetItem('')
+        self.DatasetList.setItem(icount, 6, ele)
+        ele = QtWidgets.QTableWidgetItem('1.0')
+        self.DatasetList.setItem(icount, 7, ele)
         self.DatasetList.resizeColumnsToContents()
-        self.DatasetList.blockSignals(False)
 
     def plotDatasetList(self):
+        self.DatasetList.blockSignals(True)
         self.axes.clear()
         self.axesr.clear()
         self.hasRAxis = False
@@ -121,7 +142,8 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         self.ylabel = []
         self.ylabelR = []
         self.plotType = None
-
+        self.title = None
+        font=QtGui.QFont()
         ncol = self.DatasetList.rowCount()
         for i in range(ncol):
             ele = self.DatasetList.item(i, 0)
@@ -133,12 +155,37 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
                 color='tab:'+str(self.DatasetList.cellWidget(i, 4).currentText()).lower()
                 mode = str(self.DatasetList.cellWidget(i, 1).currentText()).lower()
                 zpos = str(self.DatasetList.item(i,5).text())
+                leg = str(self.DatasetList.item(i,6).text())
+                scl = str(self.DatasetList.item(i,7).text())
+                try:                    
+                    scale = float(scl) 
+                except:
+                    scale=1.0
                 try:
                     spos = float(zpos)
                 except:
                     spos = self.UIPos.value()
-                self.doPlot(file,field,mode,rAxis,log,color,spos)
+                res = self.doPlot(file,field,mode,rAxis,log,color,spos,leg,scale)
+                if res:
+                    font.setItalic(False)
+                    ele.setFont(font)
+                else:
+                    font.setItalic(True)
+                    ele.setFont(font)
+                    
+
         self.axes.set_xlabel(self.xlabel)
+        ylab=r''
+        print(self.ylabel)
+        for ele in self.ylabel:
+            if len(ele) < 1:
+                continue
+            if len(ylab)>0:
+                ylab+=r', '
+            ylab+=ele
+        self.axes.set_ylabel(ylab)
+        self.axes.set_title(self.title)
+
         if not self.hasRAxis:
             self.axesr.get_yaxis().set_visible(False)
         else:
@@ -164,12 +211,17 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             ymax=self.axes.get_ylim()[1]
         self.axes.set_ylim([ymin,ymax])
 
+        if self.UILegend.isChecked():
+            self.axes.legend()
+
         self.canvas.draw()
+
+        self.DatasetList.blockSignals(False)
 
     ##############################
     # plot of individual dataset
 
-    def doPlot(self, file, field, mode, rAxis, log, color, pos):
+    def doPlot(self, file, field, mode, rAxis, log, color, pos, leg, scale):
         if 'Correlation' in field:
             data = self.files[file].getCoherence(field[:-1], pos,int(field[11:12]))
         elif 'Convolution' in field:
@@ -177,25 +229,36 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         elif 'Wigner' in field:
             data = self.files[file].getWigner(field, pos)
         else:
-            data = self.files[file].getData(field, mode=mode, rel=pos)
+            data = self.files[file].getData(field, mode = mode, rel = pos, legend = leg)
         if data is None:
-            return
+            return False
+        
+        if rAxis:
+            self.ylabelR.append(data['ylabel'])
+        else:
+            self.ylabel.append(data['ylabel'])
 
         if self.xlabel is None:
             self.xlabel=data['xlabel']
+        else:
+            if not (self.xlabel == data['xlabel']):
+                return False
+        
+        if self.title is None:
+            self.title = data['title']
 
         if 'plot' in data['plot']:
             ax=self.axes
             if rAxis:
                 ax=self.axesr
                 self.hasRAxis=True
-            ax.plot(data['x'], data['y'],ds=data['line'],color=color)
+            ax.plot(data['x'], data['y']*scale,ds=data['line'],color=color,label=data['label'])
             if log:
                 ax.set_yscale('log')
         elif 'image' in data['plot']:
             bbox = [np.min(data['y']), np.max(data['y']), np.min(data['x']), np.max(data['x'])]
-            im = self.axes.imshow(np.flipud(data['z']), aspect='auto', interpolation='none', cmap='viridis', extent=bbox)
-
+            im = self.axes.imshow(np.flipud(data['z']), aspect='auto', interpolation='none', cmap=self.colormap, extent=bbox)
+        return True
     ####################33
     # menu item action or other events
 
@@ -235,7 +298,9 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             cur = cur.parent()
             Field = str(cur.text(0))+'/'+Field
         file = cur.data(0,QtCore.Qt.UserRole)
+        self.DatasetList.blockSignals(True)
         self.addDatasetListEntry(file, Field)
+        self.DatasetList.blockSignals(False)
         self.plotDatasetList()
 
     def duplicateDataset(self):
@@ -243,13 +308,17 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         ele = self.DatasetList.item(row,0)
         file = ele.data(QtCore.Qt.UserRole)
         field = str(ele.text())
+        self.DatasetList.blockSignals(True)
         self.addDatasetListEntry(file,field)
+        self.DatasetList.blockSignals(False)
 
     def deleteDataset(self):
         row = self.DatasetList.currentRow()
         if row < 0:
             return
+        self.DatasetList.blockSignals(True)
         self.DatasetList.removeRow(row)
+        self.DatasetList.blockSignals(False)
 
     def coherence(self):
         cmd = 'Field([/]|[2-9][/])intensity'
@@ -262,7 +331,10 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             if len(found):
                 name = key.split('/')[-1] + '/'
                 for fld in found:
+                    self.DatasetList.blockSignals(True)
                     self.addDatasetListEntry(key, 'Correlation'+order+'('+name+fld+')')
+                    self.DatasetList.blockSignals(False)
+
 
     def convolution(self):
         cmd = 'Field.*/power'
@@ -271,7 +343,9 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             if len(found):
                 name = key.split('/')[-1] + '/'
                 for fld in found:
+                    self.DatasetList.blockSignals(True)
                     self.addDatasetListEntry(key, 'Convolution(' + name + fld + ')')
+                    self.DatasetList.blockSignals(False)
 
     def Wigner(self):
         cmd = 'Field([/]|[2-9][/])intensity'
@@ -280,7 +354,9 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             if len(found):
                 name = key.split('/')[-1] + '/'
                 for fld in found:
+                    self.DatasetList.blockSignals(True)
                     self.addDatasetListEntry(key, 'Wigner(' + name + fld + ')', ['2D'])
+                    self.DatasetList.blockSignals(False)
 
     #-----------------
 # gui action
