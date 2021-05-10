@@ -182,7 +182,7 @@ class GenOutputFile:
         if degree == 1:
             sig = np.sqrt(ele[idz,:])*np.exp(1j*elesup[idz,:])
             sigc = np.conj(sig)
-            ylabel=r'$g_1(t)$'
+            ylabel=r'$|g_1(t)|$'
         elif degree == 2:
             sig = ele[idz,:]
             sigc= ele[idz,:]
@@ -195,10 +195,10 @@ class GenOutputFile:
         x = self.s[0:n]
         nfull = len(sig)
         for i in range(n):
-            y[i] = np.real(np.mean(sig[0:nfull-i]*sigc[i:nfull]))
+            y[i] = np.abs(np.mean(sig[0:nfull-i]*sigc[i:nfull]))
         norm = y[0]
         if degree == 2:
-            norm = np.mean(sig)**2
+            norm = np.abs(np.mean(sig))**2
         if norm == 0:
             norm = 1
         y /= norm
