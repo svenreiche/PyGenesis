@@ -263,6 +263,7 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             if rAxis:
                 ax = self.axesr
                 self.hasRAxis = True
+            
             ax.plot(data['x'], data['y']*scale, ds=data['line'], color=color, label=data['label'])
             if log:
                 ax.set_yscale('log')

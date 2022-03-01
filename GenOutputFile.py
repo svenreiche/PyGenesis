@@ -88,7 +88,7 @@ class GenOutputFile:
         if 'spectrum' in tag:
             ele = self.spec[tag]
         else:
-            ele = self.file.get(tag)
+            ele = self.file.get(tag)[()]
         dims = ele.shape
 
 
