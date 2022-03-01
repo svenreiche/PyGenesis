@@ -124,7 +124,11 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
         CBMode = QtWidgets.QComboBox()
         for mode in option:
             CBMode.addItem(mode)
-        CBMode.setCurrentIndex(0)
+        if self.files[file].is2D:
+            CBMode.setCurrentIndex(0)
+        else:
+            CBMode.setCurrentIndex(len(option)-1)
+
         self.DatasetList.setCellWidget(icount, 1, CBMode)
         CBMode.currentIndexChanged.connect(self.plotDatasetList)
         for i in range(2):
@@ -263,7 +267,7 @@ class PyGenesis(QMainWindow, Ui_PyGenesisGUI):
             if rAxis:
                 ax = self.axesr
                 self.hasRAxis = True
-            
+
             ax.plot(data['x'], data['y']*scale, ds=data['line'], color=color, label=data['label'])
             if log:
                 ax.set_yscale('log')
