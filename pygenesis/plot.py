@@ -12,7 +12,7 @@ def plot(obj,fld,method='raw',position=0.0,scale='',**kwargs):
         for dat in data:
             genplot2D(dat,multi,**kwargs)
         return
-    elif method == 'max' or method == 'mean' or method == 'slice' or method == 'trace':
+    elif method == 'max' or method == 'mean' or method == 'slice' or method == 'trace' or method=='weighted':
         genplot1D(data,scale =scale, multi=multi)
         return
 
@@ -93,6 +93,7 @@ def getYLabel(key,scale,file, multi):
         leg='%s/%s' % (file,key)
     var=''
     unit=''
+    title=''
     if scale=='mu':
         scale='$\mu$'
     if 'power' in key:

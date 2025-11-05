@@ -128,11 +128,37 @@ class data:
                     if norm == 0:
                         norm = 1
                     data[key][iz,:] = data[key][iz,:]/norm
+            elif method == 'weighted':
+                if 'Field' in key:
+                    fld = key.split('/')[0]+'/power'
+                    norm=self.getRecord(fld)
+                    wdata=np.zeros((data[key].shape[0]))
+                    for iz in range(data[key].shape[0]):
+                        tx=np.sum(data[key][iz,:]*norm[fld][iz,:])
+                        txx=np.sum(norm[fld][iz,:])
+                        if txx == 0:
+                            txx=1
+                        wdata[iz]=tx/txx
+                    data[key] = wdata
+                elif 'Beam' in key:
+                    fld = 'Beam/current'
+                    norm = self.getRecord(fld)
+                    scl = 1
+                    if norm[fld].shape[0] == 1:
+                        scl = 0
+                    wdata = np.zeros((data[key].shape[0]))
+                    for iz in range(data[key].shape[0]):
+                        tx=np.sum(data[key][iz,:]*norm[fld][scl*iz,:])
+                        txx=np.sum(norm[fld][scl*iz,:])
+                        if txx == 0:
+                            txx=1
+                        wdata[iz]=tx/txx
+                    data[key] = wdata
             elif not method =='raw' :
                 print('Method %s not implemented' % method)
                 return None
 
-            res = {'data':data,'x':x,'y':y,'xlabel':xlab,'ylabel':ylab,'method':method,'file':self.file}
+        res = {'data':data,'x':x,'y':y,'xlabel':xlab,'ylabel':ylab,'method':method,'file':self.file}
 
-            return res
+        return res
 
