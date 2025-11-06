@@ -67,6 +67,10 @@ def genplot1D(data,scale = '', multi=False,**kwargs):
         fullylab = fullylab[:-2]
     ax.set_xlabel(xlab)
     ax.set_ylabel(fullylab)
+    if 'xlim' in kwargs.keys():
+        ax.set_xlim(kwargs['xlim'])
+    if 'ylim' in kwargs.keys():
+        ax.set_ylim(kwargs['ylim'])
     ax.set_title('Test')
     if icount > 1:
         ax.legend()
@@ -91,6 +95,9 @@ def genplot2D(data,multi=False,**kwargs):
         pkwargs['vmax']=kwargs['vmax']
 
     for key in data['data'].keys():
+        if 'vscl' in kwargs.keys():
+            pkwargs['vmax'] = kwargs['vscl'] * np.max(data['data'][key])
+            pkwargs['vmin'] = kwargs['vscl'] * np.min(data['data'][key])
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.imshow(np.flipud(data['data'][key]),aspect='auto',extent=ext,**pkwargs)

@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import re
 
-from ply.ctokens import t_NOT
+import matplotlib.pyplot as plt
 
 
 class data:
@@ -61,6 +61,9 @@ class data:
     def getRecord(self,fld):
         if 'spectrum' in fld:
             return self.getSpectrum(fld)
+        if 'wigner' in fld:
+            return self.getSignal(fld)
+
         found = self.findRecord(fld)
         return {fld:self.hid[fld][()] for fld in found}
 
@@ -87,6 +90,21 @@ class data:
 
 
 
+    def getSignal(self,fld):
+        """
+        Obtain a signal from stored results. If not found than it calculates it
+        :param fld: a regular expression to specify the signal
+        :return: dictionary with fld name and signal information
+        """
+        inten = self.getRecord(fld.replace('wigner','intensity'))
+        res={}
+        for key in inten.keys():
+            ref = key.replace('intensity','wigner')
+            flds=key.replace('intensity','phase')
+            phase = self.getRecord(flds)
+            sig = np.sqrt(inten[key])*np.exp(1j*phase[flds])
+            res[ref] = sig
+        return res
 
 
     def getSpectrum(self,fld):
@@ -146,7 +164,6 @@ class data:
         if self.hid is None:
             return None
 
-
         # get all found dataset
         data = self.getRecord(fld)
 
@@ -158,10 +175,20 @@ class data:
         xlab,ylab=xlab0,ylab0
 
         for key in data.keys():
-
+            if 'wigner' in key:
+                nz = int(np.round(data[key].shape[0] * position))
+                if nz >= data[key].shape[0]:
+                    nz = data[key].shape[0] - 1
+                if nz < 0:
+                    nz = 0
+                sig=data[key][nz,:]
+                data[key]=self.Wigner(sig)
+                x=self.freq
+                xlab = r'$E_ph$ (eV)'
+                method='raw'
             if 'spectrum' in key:
-                y = self.freq
-                ylab = r'$E_ph$ (eV)'
+                y0 = self.freq
+                ylab0 = r'$E_ph$ (eV)'
             if method == 'mean':
                 data[key]=np.mean(data[key],axis=1)
             elif method == 'max':
@@ -229,3 +256,18 @@ class data:
         print('Datasets found:')
         for r in res:
             print(r)
+
+    def Wigner(self,signal,cut=0.1):
+        if self.verbose:
+            print('Calculating Wigner distribution. This takes a while...')
+        nt=len(signal)
+        sig1 = np.zeros((nt),dtype=complex)
+        sig2 = np.zeros((nt),dtype=complex)
+        wig=np.zeros((nt,nt),dtype=float)
+        for it in range(nt):
+            sig1*=0
+            sig2*=0
+            sig1[0:it]=signal[it:0:-1]
+            sig2[0:nt-it]=np.conjugate(signal[it:])
+            wig[it,:]=np.fft.fftshift(np.fft.fft(sig1*sig2)).real[::-1]
+        return np.transpose(wig.real)
