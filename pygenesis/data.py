@@ -2,12 +2,16 @@ import h5py
 import numpy as np
 import re
 
+from ply.ctokens import t_NOT
+
+
 class data:
     def __init__(self, verbose=False):
         self.verbose = verbose
         self.hid=None
         self.found=[]
         self.exclude=['Lattice','Meta','Global']
+        self.spectrum={}
 
     def loadFile(self,file=None,hid=None):
         if hid is None:
@@ -55,6 +59,8 @@ class data:
                     print('  ',key,':',ele)
 
     def getRecord(self,fld):
+        if 'spectrum' in fld:
+            return self.getSpectrum(fld)
         found = self.findRecord(fld)
         return {fld:self.hid[fld][()] for fld in found}
 
@@ -80,8 +86,54 @@ class data:
                     self.found.append(name)
 
 
-    ######
-    # getting various data
+
+
+
+    def getSpectrum(self,fld):
+        """
+        Obtain a spectrum from stored results. If not found than it calculates it
+        :param fld: a regular expression to specify the spectrum
+        :return: dictionary with fld name and spectral information
+        """
+        inten = self.getRecord(fld.replace('spectrum','intensity'))
+        res={}
+        for key in inten.keys():
+            ref = key.replace('intensity','spectrum')
+            if not ref in self.spectrum.keys():
+                if self.verbose:
+                    print('Calculating spectrum for:',key)
+                flds=key.replace('intensity','phase')
+                phase = self.getRecord(flds)
+                sig = np.sqrt(inten[key])*np.exp(1j*phase[flds])
+                shp =sig.shape
+                spec = np.zeros((shp))
+                for iz in range(shp[0]):
+                    spec[iz,:] = np.abs(np.fft.fftshift(np.fft.fft(sig[iz,:])))**2
+                self.spectrum[ref]=spec
+            res[ref] = self.spectrum[ref]
+        return res
+
+
+    def getLattice(self,fld):
+        """
+        extract data out of the lattice group
+        :param fld: regular expression of dataset name in the Lattice group
+        :return: data for the given fields
+        """
+
+        if not 'Lattice' in fld:
+            fld='Lattice/.*'+fld
+        self.exclude=['Meta','Global','Field','Beam','zplot']
+        data = self.getRecord(fld)
+        x = self.getRecord('Lattice/z')['Lattice/z']
+        xlab = r'$z$ (m)'
+        y=None
+        ylab=''
+        res = {'data': data, 'x': x, 'y': y, 'xlabel': xlab, 'ylabel': ylab, 'method': 'trace', 'file': self.file}
+        self.exclude = ['Lattice', 'Meta', 'Global']
+        return res
+
+
 
     def getData(self,fld,method='raw',position=0.0):
         """
@@ -93,29 +145,37 @@ class data:
         """
         if self.hid is None:
             return None
+
+
         # get all found dataset
         data = self.getRecord(fld)
 
-        x= self.z
-        xlab = r'$z$ (m)'
-        y = self.s
-        ylab = r'$t$ (fs)'
+        x0= self.z
+        xlab0 = r'$z$ (m)'
+        y0 = self.s
+        ylab0 = r'$t$ (fs)'
+        x,y=x0,y0
+        xlab,ylab=xlab0,ylab0
 
         for key in data.keys():
+
+            if 'spectrum' in key:
+                y = self.freq
+                ylab = r'$E_ph$ (eV)'
             if method == 'mean':
                 data[key]=np.mean(data[key],axis=1)
             elif method == 'max':
                 data[key]=np.max(data[key],axis=1)
-            elif method == 'slice':
+            elif method == 'profile':
                 nz=int(np.round(data[key].shape[0]*position))
                 if nz >=data[key].shape[0]:
                     nz = data[key].shape[0]-1
                 if nz <0:
                     nz = 0
                 data[key]=np.transpose(data[key][nz,:])
-                x=self.s
-                y=self.z
-            elif method == 'trace':
+                x,y=y0,x0
+                xlab,ylab=ylab0,xlab0
+            elif method == 'slice':
                 nz = int(np.round(data[key].shape[1] * position))
                 if nz >=data[key].shape[1]:
                     nz = data[key].shape[1]-1
@@ -162,3 +222,10 @@ class data:
 
         return res
 
+    def info(self,fld):
+        self.exclude = []
+        res = self.findRecord(fld)
+        self.exclude = ['Lattice', 'Meta', 'Global']
+        print('Datasets found:')
+        for r in res:
+            print(r)

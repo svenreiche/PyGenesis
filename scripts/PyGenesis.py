@@ -2,12 +2,9 @@ import sys
 import h5py
 import numpy as np
 from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtWidgets import QFileDialog, QMainWindow
-from PyQt5.QtGui import QPixmap, QDesktopServices
-from PyQt5.uic import loadUiType
+from PyQt5.QtWidgets import QMainWindow
 
 from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
 
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
