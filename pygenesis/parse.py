@@ -13,7 +13,7 @@ def open(file=None,verbose=True):
     hid = checkForFile(file)
     if hid is None:
         return None
-    obj=data.data(verbose=True)
+    obj=data.data(verbose=verbose)
     obj.loadFile(file,hid)
     return obj
 

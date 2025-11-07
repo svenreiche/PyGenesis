@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import re
 
-import matplotlib.pyplot as plt
+
 
 
 class data:
@@ -63,9 +63,8 @@ class data:
             return self.getSpectrum(fld)
         if 'wigner' in fld:
             return self.getSignal(fld)
-
         found = self.findRecord(fld)
-        return {fld:self.hid[fld][()] for fld in found}
+        return {fld: self.hid[fld][()] for fld in found}
 
     def findRecord(self, fld):
         if self.hid is None:
@@ -147,7 +146,7 @@ class data:
         xlab = r'$z$ (m)'
         y=None
         ylab=''
-        res = {'data': data, 'x': x, 'y': y, 'xlabel': xlab, 'ylabel': ylab, 'method': 'trace', 'file': self.file}
+        res = {'data': data, 'x': x, 'y': y, 'xlabel': xlab, 'ylabel': ylab, 'method': 'lattice', 'file': self.file}
         self.exclude = ['Lattice', 'Meta', 'Global']
         return res
 
@@ -185,12 +184,17 @@ class data:
                 data[key]=self.Wigner(sig)
                 x=self.freq
                 xlab = r'$E_ph$ (eV)'
-                method='raw'
+            if 'energy' in key:
+                data[key]*=np.max(self.s)*1e-15
             if 'spectrum' in key:
                 y0 = self.freq
-                ylab0 = r'$E_ph$ (eV)'
+                y=y0
+                ylab0 = r'${E_ph}$ (eV)'
+                ylab=ylab0
             if method == 'mean':
                 data[key]=np.mean(data[key],axis=1)
+            elif method == 'integrated':
+                data[key] = np.mean(data[key], axis=1)*np.max(self.s)*1e-15
             elif method == 'max':
                 data[key]=np.max(data[key],axis=1)
             elif method == 'profile':
@@ -215,6 +219,16 @@ class data:
                     if norm == 0:
                         norm = 1
                     data[key][iz,:] = data[key][iz,:]/norm
+            elif method == 'rms':
+                wdata = np.zeros((data[key].shape[0]))
+                for iz in range(data[key].shape[0]):
+                    norm = np.sum(np.abs(data[key][iz,:]))
+                    if norm == 0:
+                        norm = 1
+                    w1 = np.sum(data[key][iz,:]*y0)/norm
+                    w2 = np.sqrt(np.abs(np.sum(data[key][iz,:]*y0*y0)/norm-w1*w1))
+                    wdata[iz] = w2
+                data[key]=wdata
             elif method == 'weighted':
                 if 'Field' in key:
                     fld = key.split('/')[0]+'/power'
@@ -257,10 +271,12 @@ class data:
         for r in res:
             print(r)
 
-    def Wigner(self,signal,cut=0.1):
+    def Wigner(self,signal,cut=0.2):
         if self.verbose:
             print('Calculating Wigner distribution. This takes a while...')
         nt=len(signal)
+        #nf = int(np.round((nt*cut)))
+        #nf0 = int(np.round((nt*0.5+nf*0.5)))
         sig1 = np.zeros((nt),dtype=complex)
         sig2 = np.zeros((nt),dtype=complex)
         wig=np.zeros((nt,nt),dtype=float)
